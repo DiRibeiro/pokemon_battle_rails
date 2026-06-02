@@ -1,38 +1,67 @@
 class BattlesController < ApplicationController
+  skip_before_action :verify_authenticity_token, only: :create
+
   def index
   end
 
   def create
-    # Captura os parâmetros enviados pelo formulário
     @pokemon1_name = params[:pokemon1]
     @pokemon2_name = params[:pokemon2]
 
-    # Validação rápida: impede que prossiga se faltar algum nome
     if @pokemon1_name.blank? || @pokemon2_name.blank?
-      flash.now[:alert] = "Por favor, preencha o nome dos dois Pokémon."
-      return render :index, status: :unprocessable_entity
+      return respond_with_error(
+        "Por favor, preencha o nome dos dois Pokémon.",
+        :unprocessable_entity
+      )
     end
 
-    begin
-      # 1. Busca os dados dos dois lutadores usando o cliente da API
-      p1 = PokemonApiClient.fetch(@pokemon1_name)
-      p2 = PokemonApiClient.fetch(@pokemon2_name)
+    p1 = PokemonApiClient.fetch(@pokemon1_name)
+    p2 = PokemonApiClient.fetch(@pokemon2_name)
 
-      # 2. Instancia a batalha, executa e guarda o resultado na variável @battle
-      @battle = PokemonBattle.new(p1, p2).execute!
+    @battle = PokemonBattle.new(p1, p2).execute!
 
-      # 3. Renderiza a mesma página (index), mas agora com os dados de @battle disponíveis
-      render :index
+    respond_to do |format|
+      format.html { render :index }
+      format.json do
+        render json: {
+          pokemon1: {
+            name: p1.name,
+            hp: p1.hp
+          },
+          pokemon2: {
+            name: p2.name,
+            hp: p2.hp
+          },
+          winner: @battle.winner ? {
+            name: @battle.winner.name,
+            hp: @battle.winner.hp
+          } : nil,
+          draw: @battle.draw?,
+          result_message: @battle.result_message
+        }, status: :ok
+      end
+    end
+  rescue PokemonApiClient::PokemonNotFoundError => e
+    respond_with_error(e.message, :not_found)
+  rescue PokemonApiClient::ApiError
+    respond_with_error(
+      "Não foi possível realizar a batalha devido a uma falha de conexão externa.",
+      :bad_gateway
+    )
+  end
 
-    rescue PokemonApiClient::PokemonNotFoundError => e
-      # Se o Pokémon não existir na PokéAPI, captura a mensagem de erro customizada
-      flash.now[:alert] = e.message
-      render :index, status: :not_found
+  private
 
-    rescue PokemonApiClient::ApiError => e
-      # Se a PokéAPI estiver fora do ar ou retornar outro erro (ex: 500)
-      flash.now[:alert] = "Não foi possível realizar a batalha devido a uma falha de conexão externa."
-      render :index, status: :bad_gateway
+  def respond_with_error(message, status)
+    respond_to do |format|
+      format.html do
+        flash.now[:alert] = message
+        render :index, status: status
+      end
+
+      format.json do
+        render json: { error: message }, status: status
+      end
     end
   end
 end
