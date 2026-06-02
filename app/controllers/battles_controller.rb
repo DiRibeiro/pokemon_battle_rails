@@ -26,15 +26,18 @@ class BattlesController < ApplicationController
         render json: {
           pokemon1: {
             name: p1.name,
-            hp: p1.hp
+            hp: p1.hp,
+            sprite: p1.sprite
           },
           pokemon2: {
             name: p2.name,
-            hp: p2.hp
+            hp: p2.hp,
+            sprite: p2.sprite
           },
           winner: @battle.winner ? {
             name: @battle.winner.name,
-            hp: @battle.winner.hp
+            hp: @battle.winner.hp,
+            sprite: @battle.winner.sprite
           } : nil,
           draw: @battle.draw?,
           result_message: @battle.result_message

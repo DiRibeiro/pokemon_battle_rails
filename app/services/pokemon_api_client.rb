@@ -7,7 +7,7 @@ class PokemonApiClient
   class ApiError < StandardError; end
 
   BASE_URL = 'https://pokeapi.co/api/v2/pokemon/'
-  PokemonData = Struct.new(:name, :hp)
+  PokemonData = Struct.new(:name, :hp, :sprite, keyword_init: true)
 
   def self.fetch(pokemon_name)
     return nil if pokemon_name.blank?
@@ -49,7 +49,11 @@ class PokemonApiClient
     hp = hp_stat ? hp_stat['base_stat'] : 0
 
     # Retorna o objeto limpo, capitalizando o nome para ficar bonito na tela (ex: "Pikachu")
-    PokemonData.new(data['name'].capitalize, hp)
+    PokemonData.new(
+      name: data["name"].capitalize,
+      hp: hp_stat["base_stat"],
+      sprite: data.dig("sprites", "front_default")
+    )
   end
   
 end
